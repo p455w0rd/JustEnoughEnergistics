@@ -21,13 +21,13 @@ import mezz.jei.config.Constants;
 import mezz.jei.recipes.RecipeTransferRegistry;
 import mezz.jei.transfer.RecipeTransferErrorInternal;
 import mezz.jei.transfer.RecipeTransferErrorTooltip;
-import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraft.util.text.translation.I18n;
 import net.minecraftforge.fml.relauncher.ReflectionHelper;
 import p455w0rd.jee.init.ModLogger;
 import p455w0rd.jee.init.ModNetworking;
@@ -157,13 +157,14 @@ public class JEI implements IModPlugin {
 		}
 	}
 
+	@SuppressWarnings("deprecation")
 	private static class IncorrectTerminalModeError extends RecipeTransferErrorTooltip {
 
-		private static final String CRAFTING = I18n.format("tooltip.jee.crafting", new Object[0]);
-		private static final String PROCESSING = I18n.format("tooltip.jee.processing", new Object[0]);
+		private static final String CRAFTING = I18n.translateToLocalFormatted("tooltip.jee.crafting", new Object[0]);
+		private static final String PROCESSING = I18n.translateToLocalFormatted("tooltip.jee.processing", new Object[0]);
 
 		public IncorrectTerminalModeError(boolean needsCrafting) {
-			super(I18n.format("tooltip.jee.errormsg", TextFormatting.BOLD + (needsCrafting ? CRAFTING : PROCESSING) + TextFormatting.RESET + "" + TextFormatting.RED));
+			super(I18n.translateToLocalFormatted("tooltip.jee.errormsg", TextFormatting.BOLD + (needsCrafting ? CRAFTING : PROCESSING) + TextFormatting.RESET + "" + TextFormatting.RED));
 		}
 
 	}
