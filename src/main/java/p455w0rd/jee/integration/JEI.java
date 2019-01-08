@@ -1,6 +1,6 @@
 package p455w0rd.jee.integration;
 
-import java.util.*;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -8,7 +8,6 @@ import javax.annotation.Nullable;
 import com.google.common.collect.Table.Cell;
 
 import appeng.container.implementations.ContainerPatternTerm;
-import appeng.util.Platform;
 import mezz.jei.api.*;
 import mezz.jei.api.gui.IGuiIngredient;
 import mezz.jei.api.gui.IRecipeLayout;
@@ -22,7 +21,6 @@ import mezz.jei.recipes.RecipeTransferRegistry;
 import mezz.jei.transfer.RecipeTransferErrorInternal;
 import mezz.jei.transfer.RecipeTransferErrorTooltip;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -95,45 +93,29 @@ public class JEI implements IModPlugin {
 				int inputIndex = 0;
 				int outputIndex = 0;
 				for (Map.Entry<Integer, ? extends IGuiIngredient<ItemStack>> ingredientEntry : ingredients.entrySet()) {
-					IGuiIngredient<ItemStack> ingredient = ingredientEntry.getValue();
-					if (ingredient == null || ingredient.getDisplayedIngredient() == null) {
-						continue;
-					}
-					if (!ingredient.isInput()) {
-						if (outputIndex >= 3 || container.isCraftingMode()) {
-							continue;
+					IGuiIngredient<ItemStack> guiIngredient = ingredientEntry.getValue();
+					if (guiIngredient != null) {
+						ItemStack ingredient = ItemStack.EMPTY;
+						if (guiIngredient.getDisplayedIngredient() != null) {
+							ingredient = guiIngredient.getDisplayedIngredient().copy();
 						}
-						outputList.appendTag(ingredient.getDisplayedIngredient().writeToNBT(new NBTTagCompound()));
-						++outputIndex;
-						continue;
-					}
-					for (Slot slot : container.inventorySlots) {
-						if (slot.getSlotIndex() != inputIndex) {
-							continue;
+						if (guiIngredient.isInput()) {
+							NBTTagList tags = new NBTTagList();
+							tags.appendTag(ingredient.writeToNBT(new NBTTagCompound()));
+							recipeInputs.setTag("#" + inputIndex, tags);
+							inputIndex++;
 						}
-						NBTTagList tags = new NBTTagList();
-						List<ItemStack> list = new ArrayList<>();
-						ItemStack displayed = ingredient.getDisplayedIngredient();
-						if (displayed != null && !displayed.isEmpty()) {
-							list.add(displayed);
-						}
-						for (ItemStack stack : ingredient.getAllIngredients()) {
-							if (!Platform.isRecipePrioritized(stack)) {
-								list.add(0, stack);
+						else {
+							if (outputIndex >= 3 || container.isCraftingMode()) {
 								continue;
 							}
-							list.add(stack);
+							outputList.appendTag(ingredient.writeToNBT(new NBTTagCompound()));
+							++outputIndex;
+							continue;
 						}
-						for (ItemStack is : list) {
-							NBTTagCompound tag = new NBTTagCompound();
-							is.writeToNBT(tag);
-							tags.appendTag(tag);
-						}
-						recipeInputs.setTag("#" + slot.getSlotIndex(), tags);
-						break;
 					}
-					++inputIndex;
 				}
+
 				if (!outputList.hasNoTags()) {
 					recipeOutputs = new NBTTagCompound();
 					recipeOutputs.setTag(OUTPUTS_KEY, outputList);

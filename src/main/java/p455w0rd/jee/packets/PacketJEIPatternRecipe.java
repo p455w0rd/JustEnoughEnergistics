@@ -102,7 +102,7 @@ public class PacketJEIPatternRecipe implements IMessage, IMessageHandler<PacketJ
 						for (int x2 = 0; x2 < craftMatrix.getSlots(); ++x2) {
 							ItemStack currentItem = ItemStack.EMPTY;
 							if (recipe[x2] != null) {
-								for (int y = 0; y < recipe[x2].length; ++y) {
+								for (int y = 0; y < recipe[x2].length && currentItem.isEmpty(); ++y) {
 									currentItem = recipe[x2][y].copy();
 								}
 							}
