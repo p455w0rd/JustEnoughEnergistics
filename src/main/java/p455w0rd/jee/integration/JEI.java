@@ -1,6 +1,6 @@
 package p455w0rd.jee.integration;
 
-import java.util.Map;
+import java.util.*;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -101,7 +101,13 @@ public class JEI implements IModPlugin {
 						}
 						if (guiIngredient.isInput()) {
 							NBTTagList tags = new NBTTagList();
-							tags.appendTag(ingredient.writeToNBT(new NBTTagCompound()));
+							List<ItemStack> stackList = new ArrayList<>();
+							for (ItemStack stack : guiIngredient.getAllIngredients()) {
+								stackList.add(stack);
+							}
+							for (ItemStack stack : stackList) {
+								tags.appendTag(stack.writeToNBT(new NBTTagCompound()));
+							}
 							recipeInputs.setTag("#" + inputIndex, tags);
 							inputIndex++;
 						}
@@ -115,7 +121,6 @@ public class JEI implements IModPlugin {
 						}
 					}
 				}
-
 				if (!outputList.hasNoTags()) {
 					recipeOutputs = new NBTTagCompound();
 					recipeOutputs.setTag(OUTPUTS_KEY, outputList);
@@ -137,6 +142,7 @@ public class JEI implements IModPlugin {
 			}
 			return null;
 		}
+
 	}
 
 	@SuppressWarnings("deprecation")
