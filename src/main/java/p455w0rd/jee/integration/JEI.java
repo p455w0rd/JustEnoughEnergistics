@@ -103,7 +103,9 @@ public class JEI implements IModPlugin {
 							NBTTagList tags = new NBTTagList();
 							List<ItemStack> stackList = new ArrayList<>();
 							for (ItemStack stack : guiIngredient.getAllIngredients()) {
-								stackList.add(stack);
+								if (stack != null) { // How is this even a thing in 1.12?? Fix for https://github.com/p455w0rd/JustEnoughEnergistics/issues/3
+									stackList.add(stack);
+								}
 							}
 							for (ItemStack stack : stackList) {
 								tags.appendTag(stack.writeToNBT(new NBTTagCompound()));
