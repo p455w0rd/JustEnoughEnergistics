@@ -1,6 +1,6 @@
 package p455w0rd.jee.integration;
 
-import java.util.*;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -12,12 +12,14 @@ import mezz.jei.api.*;
 import mezz.jei.api.gui.IGuiIngredient;
 import mezz.jei.api.gui.IRecipeLayout;
 import mezz.jei.api.ingredients.IModIngredientRegistration;
+import mezz.jei.api.recipe.IStackHelper;
 import mezz.jei.api.recipe.VanillaRecipeCategoryUid;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
 import mezz.jei.collect.Table;
 import mezz.jei.config.Constants;
 import mezz.jei.recipes.RecipeTransferRegistry;
+import mezz.jei.startup.StackHelper;
 import mezz.jei.transfer.RecipeTransferErrorInternal;
 import mezz.jei.transfer.RecipeTransferErrorTooltip;
 import net.minecraft.entity.player.EntityPlayer;
@@ -27,20 +29,28 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.translation.I18n;
 import net.minecraftforge.fml.relauncher.ReflectionHelper;
+import net.minecraftforge.oredict.OreDictionary;
 import p455w0rd.jee.init.ModLogger;
 import p455w0rd.jee.init.ModNetworking;
 import p455w0rd.jee.packets.PacketJEIPatternRecipe;
 import p455w0rd.jee.util.WrappedTable;
 
-@SuppressWarnings("rawtypes")
+@SuppressWarnings({
+		"rawtypes", "deprecation"
+})
 @JEIPlugin
 public class JEI implements IModPlugin {
 
 	private static final IRecipeTransferError NEEDED_MODE_CRAFTING = new IncorrectTerminalModeError(true);
 	private static final IRecipeTransferError NEEDED_MODE_PROCESSING = new IncorrectTerminalModeError(false);
+	private static StackHelper stackHelper = null;
 
 	@Override
 	public void register(@Nonnull IModRegistry registry) {
+		IStackHelper ish = registry.getJeiHelpers().getStackHelper();
+		if (ish instanceof StackHelper) {
+			stackHelper = (StackHelper) registry.getJeiHelpers().getStackHelper();
+		}
 		Table<Class<?>, String, IRecipeTransferHandler> newRegistry = Table.hashBasedTable();
 		boolean ae2found = false;
 		for (Cell<Class, String, IRecipeTransferHandler> currentCell : ((RecipeTransferRegistry) registry.getRecipeTransferRegistry()).getRecipeTransferHandlers().cellSet()) {
@@ -72,6 +82,10 @@ public class JEI implements IModPlugin {
 	public void registerItemSubtypes(ISubtypeRegistry subtypeRegistry) {
 	}
 
+	public static StackHelper getStackHelper() {
+		return stackHelper;
+	}
+
 	public static class RecipeTransferHandler implements IRecipeTransferHandler<ContainerPatternTerm> {
 
 		public static final String OUTPUTS_KEY = "Outputs";
@@ -101,20 +115,23 @@ public class JEI implements IModPlugin {
 						}
 						if (guiIngredient.isInput()) {
 							NBTTagList tags = new NBTTagList();
-							List<ItemStack> stackList = new ArrayList<>();
-							for (ItemStack stack : guiIngredient.getAllIngredients()) {
-								if (stack != null) { // How is this even a thing in 1.12?? Fix for https://github.com/p455w0rd/JustEnoughEnergistics/issues/3
-									stackList.add(stack);
-								}
+							String oreDict = getStackHelper().getOreDictEquivalent(guiIngredient.getAllIngredients());
+							if (oreDict != null) { // Fix for https://github.com/p455w0rd/JustEnoughEnergistics/issues/4 (kind of a band-aid, we'll see)
+								tags.appendTag(OreDictionary.getOres(oreDict).get(0).writeToNBT(new NBTTagCompound()));
 							}
-							for (ItemStack stack : stackList) {
-								tags.appendTag(stack.writeToNBT(new NBTTagCompound()));
+							else {
+								for (ItemStack stack : guiIngredient.getAllIngredients()) {
+									if (stack != null) { // How is this even a thing in 1.12?? Fix for https://github.com/p455w0rd/JustEnoughEnergistics/issues/3
+										tags.appendTag(stack.writeToNBT(new NBTTagCompound()));
+										break;
+									}
+								}
 							}
 							recipeInputs.setTag("#" + inputIndex, tags);
 							inputIndex++;
 						}
 						else {
-							if (outputIndex >= 3 || container.isCraftingMode()) {
+							if (outputIndex >= 3 || ingredient.isEmpty() || container.isCraftingMode()) {
 								continue;
 							}
 							outputList.appendTag(ingredient.writeToNBT(new NBTTagCompound()));
@@ -147,7 +164,6 @@ public class JEI implements IModPlugin {
 
 	}
 
-	@SuppressWarnings("deprecation")
 	private static class IncorrectTerminalModeError extends RecipeTransferErrorTooltip {
 
 		private static final String CRAFTING = I18n.translateToLocalFormatted("tooltip.jee.crafting", new Object[0]);
