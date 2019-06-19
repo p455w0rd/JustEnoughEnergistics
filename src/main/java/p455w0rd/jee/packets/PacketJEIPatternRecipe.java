@@ -60,27 +60,20 @@ public class PacketJEIPatternRecipe implements IMessage, IMessageHandler<PacketJ
 	@Override
 	public IMessage onMessage(PacketJEIPatternRecipe message, MessageContext ctx) {
 		FMLCommonHandler.instance().getWorldThread(ctx.netHandler).addScheduledTask(() -> {
-			int x;
-			NBTTagList list;
+			NBTTagCompound currentStack;
 			EntityPlayerMP player = ctx.getServerHandler().player;
 			Container con = player.openContainer;
-			ItemStack[][] recipe = new ItemStack[9][];
+			ItemStack[] recipe = new ItemStack[9];
 			ItemStack[] recipeOutput = null;
-			for (x = 0; x < recipe.length; ++x) {
-				list = message.input.getTagList("#" + x, 10);
-				if (list.tagCount() <= 0) {
-					continue;
-				}
-				recipe[x] = new ItemStack[list.tagCount()];
-				for (int y = 0; y < list.tagCount(); ++y) {
-					recipe[x][y] = new ItemStack(list.getCompoundTagAt(y));
-				}
+			for (int i = 0; i < recipe.length; ++i) {
+				currentStack = (NBTTagCompound) message.input.getTag("#" + i);
+				recipe[i] = currentStack == null ? ItemStack.EMPTY : new ItemStack(currentStack);
 			}
 			if (message.output != null) {
 				recipeOutput = new ItemStack[3];
-				for (x = 0; x < recipeOutput.length; ++x) {
-					list = message.output.getTagList(RecipeTransferHandler.OUTPUTS_KEY, 10);
-					recipeOutput[x] = new ItemStack(list.getCompoundTagAt(x));
+				NBTTagList outputList = message.output.getTagList(RecipeTransferHandler.OUTPUTS_KEY, 10);
+				for (int i = 0; i < recipeOutput.length; ++i) {
+					recipeOutput[i] = new ItemStack(outputList.getCompoundTagAt(i));
 				}
 			}
 			if (con instanceof IContainerCraftingPacket && con instanceof ContainerPatternTerm) {
@@ -99,14 +92,12 @@ public class PacketJEIPatternRecipe implements IMessage, IMessageHandler<PacketJ
 					ISecurityGrid security = (ISecurityGrid) grid.getCache(ISecurityGrid.class);
 					IItemHandler craftMatrix = cct.getInventoryByName("crafting");
 					if (inv != null && recipe != null && security != null) {
-						for (int x2 = 0; x2 < craftMatrix.getSlots(); ++x2) {
+						for (int i = 0; i < craftMatrix.getSlots(); ++i) {
 							ItemStack currentItem = ItemStack.EMPTY;
-							if (recipe[x2] != null) {
-								for (int y = 0; y < recipe[x2].length && currentItem.isEmpty(); ++y) {
-									currentItem = recipe[x2][y].copy();
-								}
+							if (recipe[i] != null) {
+								currentItem = recipe[i].copy();
 							}
-							ItemHandlerUtil.setStackInSlot(craftMatrix, x2, currentItem);
+							ItemHandlerUtil.setStackInSlot(craftMatrix, i, currentItem);
 						}
 						if (recipeOutput == null) {
 							con.onCraftMatrixChanged(new WrapperInvItemHandler(craftMatrix));

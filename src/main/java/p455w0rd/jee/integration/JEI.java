@@ -1,5 +1,6 @@
 package p455w0rd.jee.integration;
 
+import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
@@ -8,6 +9,7 @@ import javax.annotation.Nullable;
 import com.google.common.collect.Table.Cell;
 
 import appeng.container.implementations.ContainerPatternTerm;
+import appeng.util.Platform;
 import mezz.jei.api.*;
 import mezz.jei.api.gui.IGuiIngredient;
 import mezz.jei.api.gui.IRecipeLayout;
@@ -29,7 +31,6 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.translation.I18n;
 import net.minecraftforge.fml.relauncher.ReflectionHelper;
-import net.minecraftforge.oredict.OreDictionary;
 import p455w0rd.jee.init.ModLogger;
 import p455w0rd.jee.init.ModNetworking;
 import p455w0rd.jee.packets.PacketJEIPatternRecipe;
@@ -46,14 +47,14 @@ public class JEI implements IModPlugin {
 	private static StackHelper stackHelper = null;
 
 	@Override
-	public void register(@Nonnull IModRegistry registry) {
-		IStackHelper ish = registry.getJeiHelpers().getStackHelper();
+	public void register(@Nonnull final IModRegistry registry) {
+		final IStackHelper ish = registry.getJeiHelpers().getStackHelper();
 		if (ish instanceof StackHelper) {
 			stackHelper = (StackHelper) registry.getJeiHelpers().getStackHelper();
 		}
 		Table<Class<?>, String, IRecipeTransferHandler> newRegistry = Table.hashBasedTable();
 		boolean ae2found = false;
-		for (Cell<Class, String, IRecipeTransferHandler> currentCell : ((RecipeTransferRegistry) registry.getRecipeTransferRegistry()).getRecipeTransferHandlers().cellSet()) {
+		for (final Cell<Class, String, IRecipeTransferHandler> currentCell : ((RecipeTransferRegistry) registry.getRecipeTransferRegistry()).getRecipeTransferHandlers().cellSet()) {
 			if (currentCell.getRowKey().equals(ContainerPatternTerm.class)) {
 				ae2found = true;
 				continue;
@@ -65,21 +66,21 @@ public class JEI implements IModPlugin {
 			ModLogger.info("AE2 RecipeTransferHandler Replaced Successfully (Registered prior)");
 		}
 		else {
-			newRegistry = new WrappedTable<Class<?>, String, IRecipeTransferHandler>(newRegistry);
+			newRegistry = new WrappedTable<>(newRegistry);
 		}
-		ReflectionHelper.setPrivateValue(RecipeTransferRegistry.class, ((RecipeTransferRegistry) registry.getRecipeTransferRegistry()), newRegistry, "recipeTransferHandlers");
+		ReflectionHelper.setPrivateValue(RecipeTransferRegistry.class, (RecipeTransferRegistry) registry.getRecipeTransferRegistry(), newRegistry, "recipeTransferHandlers");
 	}
 
 	@Override
-	public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
+	public void onRuntimeAvailable(final IJeiRuntime jeiRuntime) {
 	}
 
 	@Override
-	public void registerIngredients(IModIngredientRegistration registry) {
+	public void registerIngredients(final IModIngredientRegistration registry) {
 	}
 
 	@Override
-	public void registerItemSubtypes(ISubtypeRegistry subtypeRegistry) {
+	public void registerItemSubtypes(final ISubtypeRegistry subtypeRegistry) {
 	}
 
 	public static StackHelper getStackHelper() {
@@ -97,37 +98,34 @@ public class JEI implements IModPlugin {
 
 		@Override
 		@Nullable
-		public IRecipeTransferError transferRecipe(ContainerPatternTerm container, IRecipeLayout recipeLayout, EntityPlayer player, boolean maxTransfer, boolean doTransfer) {
-			String recipeType = recipeLayout.getRecipeCategory().getUid();
+		public IRecipeTransferError transferRecipe(final ContainerPatternTerm container, final IRecipeLayout recipeLayout, final EntityPlayer player, final boolean maxTransfer, final boolean doTransfer) {
+			final String recipeType = recipeLayout.getRecipeCategory().getUid();
 			if (doTransfer) {
-				Map<Integer, ? extends IGuiIngredient<ItemStack>> ingredients = recipeLayout.getItemStacks().getGuiIngredients();
-				NBTTagCompound recipeInputs = new NBTTagCompound();
+				final Map<Integer, ? extends IGuiIngredient<ItemStack>> ingredients = recipeLayout.getItemStacks().getGuiIngredients();
+				final NBTTagCompound recipeInputs = new NBTTagCompound();
 				NBTTagCompound recipeOutputs = null;
-				NBTTagList outputList = new NBTTagList();
+				final NBTTagList outputList = new NBTTagList();
 				int inputIndex = 0;
 				int outputIndex = 0;
-				for (Map.Entry<Integer, ? extends IGuiIngredient<ItemStack>> ingredientEntry : ingredients.entrySet()) {
-					IGuiIngredient<ItemStack> guiIngredient = ingredientEntry.getValue();
+				for (final Map.Entry<Integer, ? extends IGuiIngredient<ItemStack>> ingredientEntry : ingredients.entrySet()) {
+					final IGuiIngredient<ItemStack> guiIngredient = ingredientEntry.getValue();
 					if (guiIngredient != null) {
 						ItemStack ingredient = ItemStack.EMPTY;
 						if (guiIngredient.getDisplayedIngredient() != null) {
 							ingredient = guiIngredient.getDisplayedIngredient().copy();
 						}
 						if (guiIngredient.isInput()) {
-							NBTTagList tags = new NBTTagList();
-							String oreDict = getStackHelper().getOreDictEquivalent(guiIngredient.getAllIngredients());
-							if (oreDict != null) { // Fix for https://github.com/p455w0rd/JustEnoughEnergistics/issues/4 (kind of a band-aid, we'll see)
-								tags.appendTag(OreDictionary.getOres(oreDict).get(0).writeToNBT(new NBTTagCompound()));
-							}
-							else {
-								for (ItemStack stack : guiIngredient.getAllIngredients()) {
-									if (stack != null) { // How is this even a thing in 1.12?? Fix for https://github.com/p455w0rd/JustEnoughEnergistics/issues/3
-										tags.appendTag(stack.writeToNBT(new NBTTagCompound()));
-										break;
-									}
+							final List<ItemStack> currentList = guiIngredient.getAllIngredients();
+							ItemStack stack = currentList.isEmpty() ? ItemStack.EMPTY : currentList.get(0);
+							for (final ItemStack currentStack : currentList) {
+								if (Platform.isRecipePrioritized(currentStack)) {
+									stack = currentStack.copy();
 								}
 							}
-							recipeInputs.setTag("#" + inputIndex, tags);
+							if (stack == null) {
+								stack = ItemStack.EMPTY;
+							}
+							recipeInputs.setTag("#" + inputIndex, stack.writeToNBT(new NBTTagCompound()));
 							inputIndex++;
 						}
 						else {
@@ -169,7 +167,7 @@ public class JEI implements IModPlugin {
 		private static final String CRAFTING = I18n.translateToLocalFormatted("tooltip.jee.crafting", new Object[0]);
 		private static final String PROCESSING = I18n.translateToLocalFormatted("tooltip.jee.processing", new Object[0]);
 
-		public IncorrectTerminalModeError(boolean needsCrafting) {
+		public IncorrectTerminalModeError(final boolean needsCrafting) {
 			super(I18n.translateToLocalFormatted("tooltip.jee.errormsg", TextFormatting.BOLD + (needsCrafting ? CRAFTING : PROCESSING) + TextFormatting.RESET + "" + TextFormatting.RED));
 		}
 
