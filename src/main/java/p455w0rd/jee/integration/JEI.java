@@ -118,7 +118,7 @@ public class JEI implements IModPlugin {
 							final List<ItemStack> currentList = guiIngredient.getAllIngredients();
 							ItemStack stack = currentList.isEmpty() ? ItemStack.EMPTY : currentList.get(0);
 							for (final ItemStack currentStack : currentList) {
-								if (Platform.isRecipePrioritized(currentStack)) {
+								if (currentStack != null && Platform.isRecipePrioritized(currentStack)) {
 									stack = currentStack.copy();
 								}
 							}
