@@ -1,5 +1,6 @@
 package p455w0rd.jee.integration;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -96,12 +97,22 @@ public class JEI implements IModPlugin {
 			return ContainerPatternTerm.class;
 		}
 
+		private Boolean isVanillaCrafting(final String recipeType, final ContainerPatternTerm container){
+			if (!recipeType.equals(VanillaRecipeCategoryUid.INFORMATION) && !recipeType.equals(VanillaRecipeCategoryUid.FUEL)) {
+				if (recipeType.equals(VanillaRecipeCategoryUid.CRAFTING)) {
+					return Boolean.TRUE;
+				}
+			}
+			return Boolean.FALSE;
+		}
+
 		@Override
 		@Nullable
 		public IRecipeTransferError transferRecipe(final ContainerPatternTerm container, final IRecipeLayout recipeLayout, final EntityPlayer player, final boolean maxTransfer, final boolean doTransfer) {
 			final String recipeType = recipeLayout.getRecipeCategory().getUid();
 			if (doTransfer) {
 				final Map<Integer, ? extends IGuiIngredient<ItemStack>> ingredients = recipeLayout.getItemStacks().getGuiIngredients();
+				final List<ItemStack> uniqueItems = new ArrayList<>();
 				final NBTTagCompound recipeInputs = new NBTTagCompound();
 				NBTTagCompound recipeOutputs = null;
 				final NBTTagList outputList = new NBTTagList();
@@ -114,6 +125,7 @@ public class JEI implements IModPlugin {
 						if (guiIngredient.getDisplayedIngredient() != null) {
 							ingredient = guiIngredient.getDisplayedIngredient().copy();
 						}
+
 						if (guiIngredient.isInput()) {
 							final List<ItemStack> currentList = guiIngredient.getAllIngredients();
 							ItemStack stack = currentList.isEmpty() ? ItemStack.EMPTY : currentList.get(0);
@@ -125,8 +137,36 @@ public class JEI implements IModPlugin {
 							if (stack == null) {
 								stack = ItemStack.EMPTY;
 							}
-							recipeInputs.setTag("#" + inputIndex, stack.writeToNBT(new NBTTagCompound()));
-							inputIndex++;
+
+							if (isVanillaCrafting (recipeType, container)) {
+								uniqueItems.add(stack);
+							}
+							else {
+								if(!stack.isEmpty()) {
+									ItemStack existingStack = ItemStack.EMPTY;
+									for (ItemStack item : uniqueItems) {
+										if (item.isItemEqual(stack) && (item.getCount() != item.getMaxStackSize())) {
+											existingStack = item;
+											break;
+										}
+									}
+									if (existingStack.isEmpty()) {
+										uniqueItems.add(stack.copy());
+									} else {
+										// limit stacks to max size as pattern can only support that.
+										Integer maxStackSize = existingStack.getMaxStackSize();
+										Integer newCount = existingStack.getCount() + stack.getCount();
+										if (newCount > maxStackSize ) {
+											existingStack.setCount(maxStackSize);
+											stack.setCount(newCount - maxStackSize);
+											uniqueItems.add(stack.copy());
+										}
+										else {
+											existingStack.grow(stack.getCount());
+										}
+									}
+								}
+							}
 						}
 						else {
 							if (outputIndex >= 3 || ingredient.isEmpty() || container.isCraftingMode()) {
@@ -138,6 +178,11 @@ public class JEI implements IModPlugin {
 						}
 					}
 				}
+				for (ItemStack instack : uniqueItems) {
+					recipeInputs.setTag("#" + inputIndex, instack.writeToNBT(new NBTTagCompound()));
+					inputIndex++;
+				}
+
 				if (!outputList.hasNoTags()) {
 					recipeOutputs = new NBTTagCompound();
 					recipeOutputs.setTag(OUTPUTS_KEY, outputList);
