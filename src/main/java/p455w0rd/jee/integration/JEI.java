@@ -24,13 +24,17 @@ import mezz.jei.recipes.RecipeTransferRegistry;
 import mezz.jei.startup.StackHelper;
 import mezz.jei.transfer.RecipeTransferErrorInternal;
 import mezz.jei.transfer.RecipeTransferErrorTooltip;
+import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.util.NonNullList;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.translation.I18n;
 import net.minecraftforge.fml.relauncher.ReflectionHelper;
+import net.minecraftforge.oredict.OreDictionary;
 import p455w0rd.jee.init.ModLogger;
 import p455w0rd.jee.init.ModNetworking;
 import p455w0rd.jee.packets.PacketJEIPatternRecipe;
@@ -115,15 +119,28 @@ public class JEI implements IModPlugin {
 							ingredient = guiIngredient.getDisplayedIngredient().copy();
 						}
 						if (guiIngredient.isInput()) {
-							final List<ItemStack> currentList = guiIngredient.getAllIngredients();
-							ItemStack stack = currentList.isEmpty() ? ItemStack.EMPTY : currentList.get(0);
-							for (final ItemStack currentStack : currentList) {
-								if (currentStack != null && Platform.isRecipePrioritized(currentStack)) {
-									stack = currentStack.copy();
+							ItemStack stack =  ItemStack.EMPTY;
+							// If shift is held down use displayed item
+							if(maxTransfer) {
+								stack = ingredient;
+							}
+							else{
+								final List<ItemStack> currentList = guiIngredient.getAllIngredients();
+								stack = currentList.isEmpty() ? ItemStack.EMPTY : currentList.get(0);
+								for (final ItemStack currentStack : currentList) {
+									if (currentStack != null && Platform.isRecipePrioritized(currentStack)) {
+										stack = currentStack.copy();
+									}
 								}
 							}
 							if (stack == null) {
 								stack = ItemStack.EMPTY;
+							}
+							else if (stack.getMetadata() == OreDictionary.WILDCARD_VALUE) {
+								// If is wildcard item get the fist subitem of it
+								NonNullList<ItemStack> subItemList = NonNullList.create();
+								stack.getItem().getSubItems(stack.getItem().getCreativeTab(), subItemList);
+								stack = subItemList.get(0).copy();
 							}
 							recipeInputs.setTag("#" + inputIndex, stack.writeToNBT(new NBTTagCompound()));
 							inputIndex++;
